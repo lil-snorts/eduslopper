@@ -4,7 +4,9 @@ import com.eduslop.repository.LessonRepository
 import com.eduslop.repository.QuizRepository
 import com.eduslop.routes.lessonRoutes
 import com.eduslop.routes.quizRoutes
+import com.eduslop.routes.tutorRoutes
 import com.eduslop.service.GoogleAdkService
+import com.eduslop.service.LessonTutorService
 import com.eduslop.service.MockLessonService
 import com.eduslop.util.EnvLoader
 import io.ktor.http.*
@@ -52,6 +54,7 @@ fun Application.module() {
     val lessonRepository = LessonRepository()
     val quizRepository = QuizRepository()
     val googleAdkService = GoogleAdkService()
+    val lessonTutorService = LessonTutorService()
 
     // Pre-populate with our showcase Domain Driven Design lesson
     val initialDddLesson = MockLessonService.createDddLesson()
@@ -61,6 +64,7 @@ fun Application.module() {
     routing {
         // API routes
         lessonRoutes(lessonRepository, googleAdkService)
+        tutorRoutes(lessonTutorService)
         quizRoutes(lessonRepository, quizRepository)
 
         get("/api/health") {

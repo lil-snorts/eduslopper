@@ -180,11 +180,43 @@ object MockLessonService {
         )
     }
 
-    fun createFallbackLessonForPrompt(prompt: String): Lesson {
-        val cleanTopic = prompt.trim().removePrefix("how does ").removePrefix("what is ").removeSuffix(" work").removeSuffix("?").capitalizeWords()
+    fun createFallbackLessonForPrompt(prompt: String, designBrief: DesignBrief? = null): Lesson {
+        val cleanTopic = designBrief?.topic?.takeIf { it.isNotBlank() }
+            ?: prompt.trim().removePrefix("how does ").removePrefix("what is ").removeSuffix(" work").removeSuffix("?").capitalizeWords()
         val ddd = createDddLesson()
+        val objective = designBrief?.learningObjectives?.firstOrNull()?.takeIf { it.isNotBlank() }
+        val mustCover = designBrief?.keyConcepts?.firstOrNull()?.takeIf { it.isNotBlank() }
+        val audience = designBrief?.audience?.takeIf { it.isNotBlank() }
+
         if (cleanTopic.contains("Domain", ignoreCase = true) || cleanTopic.contains("DDD", ignoreCase = true)) {
-            return ddd
+            if (designBrief == null) return ddd
+
+            // Keep the rich DDD showcase content, but adapt the shared brief's
+            // audience, objective, and must-cover items so alignment is visible.
+            val adaptedCueCards = buildList {
+                if (objective != null) {
+                    add(CueCard(size + 1, "Learning Objective", "What should you be able to do after this lesson?", objective, "Objective"))
+                }
+                ddd.cueCards.forEach { add(it.copy(id = size + 1)) }
+                if (mustCover != null) {
+                    add(CueCard(size + 1, "Must Cover", "Which specific idea should this lesson make sure to cover?", mustCover, "Focus"))
+                }
+            }
+            val adaptedSummary = buildString {
+                append("A comprehensive DDD micro-lesson")
+                if (audience != null) append(" for $audience")
+                append(".")
+                if (objective != null) append(" Learning objective: $objective.")
+                append(" ")
+                append(ddd.summary)
+            }
+
+            return ddd.copy(
+                topic = designBrief.topic.ifBlank { ddd.topic },
+                summary = adaptedSummary,
+                createdAt = System.currentTimeMillis(),
+                cueCards = adaptedCueCards
+            )
         }
 
         // Generic fallback for any other prompt if Gemini is offline
@@ -254,11 +286,57 @@ object MockLessonService {
             )
         )
 
-        val cueCards = listOf(
-            CueCard(1, "Primary Purpose", "What is the primary objective of $cleanTopic?", "To simplify complex problem spaces by creating focused abstractions and well-defined boundaries.", "Fundamentals"),
-            CueCard(2, "Key Invariant", "What must always be maintained when using $cleanTopic?", "Consistency and predictable state transitions within its designated boundary.", "Rules"),
-            CueCard(3, "Best Practice", "How should one start applying $cleanTopic?", "Start with a clear, shared vocabulary and break down the problem into smaller, isolated components.", "Application")
-        )
+        val cueCards = buildList {
+            if (objective != null) {
+                add(
+                    CueCard(
+                        id = size + 1,
+                        title = "Learning Objective",
+                        frontPrompt = "What should you be able to do after this lesson?",
+                        backAnswer = objective,
+                        category = "Objective"
+                    )
+                )
+            }
+            add(
+                CueCard(
+                    id = size + 1,
+                    title = "Primary Purpose",
+                    frontPrompt = "What is the primary objective of $cleanTopic?",
+                    backAnswer = "To simplify complex problem spaces by creating focused abstractions and well-defined boundaries.",
+                    category = "Fundamentals"
+                )
+            )
+            add(
+                CueCard(
+                    id = size + 1,
+                    title = "Key Invariant",
+                    frontPrompt = "What must always be maintained when using $cleanTopic?",
+                    backAnswer = "Consistency and predictable state transitions within its designated boundary.",
+                    category = "Rules"
+                )
+            )
+            add(
+                CueCard(
+                    id = size + 1,
+                    title = "Best Practice",
+                    frontPrompt = "How should one start applying $cleanTopic?",
+                    backAnswer = "Start with a clear, shared vocabulary and break down the problem into smaller, isolated components.",
+                    category = "Application"
+                )
+            )
+            if (mustCover != null) {
+                add(
+                    CueCard(
+                        id = size + 1,
+                        title = "Must Cover",
+                        frontPrompt = "Which specific idea should this lesson make sure to cover?",
+                        backAnswer = mustCover,
+                        category = "Focus"
+                    )
+                )
+            }
+        }
 
         val quiz = listOf(
             QuizQuestion(
@@ -287,10 +365,17 @@ object MockLessonService {
             )
         )
 
+        val summary = buildString {
+            append("A concise 2D interactive pixel micro-lesson on $cleanTopic")
+            if (audience != null) append(" for $audience")
+            append(".")
+            if (objective != null) append(" Learning objective: $objective.")
+        }
+
         return Lesson(
             id = UUID.randomUUID().toString().substring(0, 8),
             topic = cleanTopic,
-            summary = "A concise 2D interactive pixel micro-lesson on $cleanTopic.",
+            summary = summary,
             animation = animation,
             cueCards = cueCards,
             quiz = quiz

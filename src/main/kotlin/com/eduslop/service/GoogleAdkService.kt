@@ -69,14 +69,18 @@ class GoogleAdkService {
 
     private val runner = Runner(rootAgent, "eduslop_app", null, sessionService)
 
-    fun generateLesson(prompt: String, userProvidedApiKey: String? = null): Lesson {
+    fun generateLesson(
+        prompt: String,
+        userProvidedApiKey: String? = null,
+        designBrief: DesignBrief? = null
+    ): Lesson {
         val apiKey = userProvidedApiKey?.takeIf { it.isNotBlank() }
             ?: EnvLoader.get("GEMINI_API_KEY")
             ?: EnvLoader.get("GOOGLE_API_KEY")
 
         if (apiKey == null) {
             logger.info("Google ADK: No API key supplied. Falling back to built-in lesson generator for: {}", prompt)
-            return MockLessonService.createFallbackLessonForPrompt(prompt)
+            return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
         }
 
         // Ensure both properties are set for ADK and GenAI client internals
@@ -91,8 +95,17 @@ class GoogleAdkService {
             // Create in-memory session in ADK
             val session = sessionService.createSession("eduslop_app", userId, null, sessionId).blockingGet()
 
+            val generationInstruction = buildString {
+                append("Generate a complete 2D retro pixel educational micro-lesson for the following topic: \"$prompt\"")
+                if (designBrief != null) {
+                    append("\n\n")
+                    append(DesignBriefFormatter.generationContext(designBrief))
+                    append("\n\nThe animation, cue cards, and quiz must all serve the agreed audience, objectives, and must-cover content above.")
+                }
+            }
+
             val content = Content.fromParts(
-                Part.fromText("Generate a complete 2D retro pixel educational micro-lesson for the following topic: \"$prompt\"")
+                Part.fromText(generationInstruction)
             )
 
             val flowable = runner.runAsync(session, content, null)
@@ -107,7 +120,7 @@ class GoogleAdkService {
 
             if (lastResponseText.isBlank()) {
                 logger.warn("Google ADK returned empty response. Utilizing fallback.")
-                return MockLessonService.createFallbackLessonForPrompt(prompt)
+                return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
             }
 
             val cleanedJson = lastResponseText
@@ -136,7 +149,7 @@ class GoogleAdkService {
             )
         } catch (e: Exception) {
             logger.error("Google ADK execution encountered error: {}. Utilizing resilient fallback.", e.message, e)
-            return MockLessonService.createFallbackLessonForPrompt(prompt)
+            return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
         }
     }
 }

@@ -72,7 +72,8 @@ data class Lesson(
 @Serializable
 data class GenerateLessonRequest(
     val prompt: String,
-    val apiKey: String? = null
+    val apiKey: String? = null,
+    val designBrief: DesignBrief? = null
 )
 
 @Serializable

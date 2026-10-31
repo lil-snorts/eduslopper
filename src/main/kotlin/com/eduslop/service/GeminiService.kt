@@ -56,14 +56,18 @@ class GeminiService {
         }
     }
 
-    suspend fun generateLesson(prompt: String, userProvidedApiKey: String? = null): Lesson {
+    suspend fun generateLesson(
+        prompt: String,
+        userProvidedApiKey: String? = null,
+        designBrief: DesignBrief? = null
+    ): Lesson {
         val apiKey = userProvidedApiKey?.takeIf { it.isNotBlank() }
             ?: EnvLoader.get("GEMINI_API_KEY")
             ?: EnvLoader.get("GOOGLE_API_KEY")
 
         if (apiKey == null) {
             logger.info("No Gemini API key supplied. Utilizing intelligent mock generation for: {}", prompt)
-            return MockLessonService.createFallbackLessonForPrompt(prompt)
+            return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
         }
 
         try {
@@ -102,7 +106,17 @@ class GeminiService {
                 contents = listOf(
                     GeminiContent(
                         parts = listOf(
-                            GeminiPart("$systemPrompt\n\nGenerate the complete educational micro-lesson for the following topic: \"$prompt\"")
+                            GeminiPart(
+                                buildString {
+                                    append(systemPrompt)
+                                    append("\n\nGenerate the complete educational micro-lesson for the following topic: \"$prompt\"")
+                                    if (designBrief != null) {
+                                        append("\n\n")
+                                        append(DesignBriefFormatter.generationContext(designBrief))
+                                        append("\n\nThe animation, cue cards, and quiz must all serve the agreed audience, objectives, and must-cover content above.")
+                                    }
+                                }
+                            )
                         )
                     )
                 )
@@ -120,7 +134,7 @@ class GeminiService {
             if (!httpResponse.status.isSuccess()) {
                 val errorBody = httpResponse.bodyAsText()
                 logger.error("Gemini API error ({}): {}", httpResponse.status, errorBody)
-                return MockLessonService.createFallbackLessonForPrompt(prompt)
+                return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
             }
 
             val geminiResponse = httpResponse.body<GeminiResponse>()
@@ -128,7 +142,7 @@ class GeminiService {
 
             if (rawText.isNullOrBlank()) {
                 logger.warn("Gemini returned empty candidate. Falling back.")
-                return MockLessonService.createFallbackLessonForPrompt(prompt)
+                return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
             }
 
             // Clean json in case Markdown code block fences are present
@@ -158,7 +172,7 @@ class GeminiService {
             )
         } catch (e: Exception) {
             logger.error("Failed to generate lesson via Gemini API: {}", e.message, e)
-            return MockLessonService.createFallbackLessonForPrompt(prompt)
+            return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
         }
     }
 }
