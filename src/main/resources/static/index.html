@@ -23,21 +23,22 @@
   <main class="container">
     <section class="prompt-hero">
       <h2 class="pixel-font">EDUCATIONAL CONTENT CREATOR</h2>
-      <p>Powered by Google ADK (Agent Development Kit). Transform any topic into a 1-minute 2D pixel animation, interactive cue cards, and a stepped self-test.</p>
+      <p>Describe a topic, align the design with the tutor, then generate a 1-minute 2D pixel animation, interactive cue cards, and a stepped self-test.</p>
     </section>
 
     <!-- Creator Form Box -->
-    <div class="pixel-box highlight">
-      <div class="creator-form">
+    <div class="pixel-box highlight" id="promptBox">
+      <div class="form-step-label pixel-font">STEP 1 // YOUR LESSON INTENT</div>
+      <div class="creator-form" id="promptForm">
         <div class="form-group">
           <label for="topicPrompt" class="form-label">ENTER LESSON TOPIC OR PROMPT:</label>
-          <textarea 
-            id="topicPrompt" 
-            class="pixel-textarea" 
+          <textarea
+            id="topicPrompt"
+            class="pixel-textarea"
             placeholder="e.g. How does Domain Driven Design work?"
             rows="3"
           >How does Domain Driven Design work</textarea>
-          
+
           <div class="pill-container">
             <span class="prompt-pill" data-prompt="How does Domain Driven Design work">⚡ Domain Driven Design</span>
             <span class="prompt-pill" data-prompt="How do HashMaps and Hash Collisions work?">⚡ HashMaps & Collisions</span>
@@ -47,27 +48,114 @@
         </div>
 
         <div class="form-group">
-          <label for="geminiApiKey" class="form-label">GEMINI API KEY (OPTIONAL - USES SERVER / FALLBACK IF BLANK):</label>
-          <input 
-            type="password" 
-            id="geminiApiKey" 
-            class="pixel-input" 
-            placeholder="AIzaSy... (leave blank to use built-in generator)"
+          <label for="geminiApiKey" class="form-label">GEMINI API KEY (REQUIRED UNLESS THE SERVER RUNS WITH USE_MOCK=true):</label>
+          <input
+            type="password"
+            id="geminiApiKey"
+            class="pixel-input"
+            placeholder="AIzaSy... (leave blank to use GEMINI_API_KEY from .env)"
           >
+          <div id="aiStatus" class="system-status">Checking generation mode...</div>
         </div>
 
-        <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
-          <button id="generateBtn" type="button" class="pixel-btn">
-            ⚡ GENERATE RETRO LESSON ➔
+        <div class="creator-actions">
+          <span class="creator-hint">The tutor will ask focused questions if your prompt is missing audience, objectives, or scope.</span>
+          <button id="tutorBtn" type="button" class="pixel-btn">
+            🧑‍🏫 DRAFT DESIGN WITH TUTOR ➔
           </button>
         </div>
       </div>
+    </div>
 
-      <!-- Loading Terminal -->
-      <div id="loadingTerminal" class="loading-terminal">
-        <div id="terminalLogs"></div>
-        <span class="terminal-cursor"></span>
+    <!-- Shared Loading / Status Terminal -->
+    <div id="loadingTerminal" class="loading-terminal">
+      <div id="terminalLogs"></div>
+      <span class="terminal-cursor"></span>
+    </div>
+
+    <!-- Tutor Design Review -->
+    <div class="pixel-box tutor-panel" id="tutorPanel" hidden>
+      <div class="tutor-header">
+        <div>
+          <div class="step-kicker pixel-font">STEP 2 // TUTOR DESIGN REVIEW</div>
+          <h3 class="pixel-font">ALIGN THE LESSON BEFORE WE BUILD IT</h3>
+        </div>
+        <span id="iterationBadge" class="iteration-badge pixel-font">PASS 0</span>
       </div>
+
+      <div id="tutorMessage" class="tutor-message"></div>
+
+      <div class="design-brief">
+        <div class="brief-grid">
+          <div class="brief-item">
+            <span class="brief-label pixel-font">TOPIC</span>
+            <div id="briefTopic" class="brief-value">-</div>
+          </div>
+          <div class="brief-item">
+            <span class="brief-label pixel-font">AUDIENCE</span>
+            <div id="briefAudience" class="brief-value">-</div>
+          </div>
+          <div class="brief-item">
+            <span class="brief-label pixel-font">TONE</span>
+            <div id="briefTone" class="brief-value">-</div>
+          </div>
+          <div class="brief-item">
+            <span class="brief-label pixel-font">ALIGNMENT</span>
+            <div id="briefStatus" class="brief-value">-</div>
+          </div>
+        </div>
+
+        <div id="briefObjectivesWrap" class="brief-section">
+          <span class="brief-label pixel-font">LEARNING OBJECTIVES</span>
+          <ul id="briefObjectives" class="brief-list"></ul>
+        </div>
+
+        <div id="briefConceptsWrap" class="brief-section">
+          <span class="brief-label pixel-font">MUST-COVER CONTENT</span>
+          <ul id="briefConcepts" class="brief-list"></ul>
+        </div>
+
+        <div id="briefOutlineWrap" class="brief-section">
+          <span class="brief-label pixel-font">PROPOSED OUTLINE</span>
+          <ol id="briefOutline" class="outline-list"></ol>
+        </div>
+
+        <div id="briefAssumptionsWrap" class="brief-section">
+          <span class="brief-label pixel-font">ASSUMPTIONS</span>
+          <ul id="briefAssumptions" class="brief-list"></ul>
+        </div>
+      </div>
+
+      <div id="staleWarning" class="stale-warning" hidden>
+        ⚠ The prompt changed after this design was drafted. Re-run the tutor to realign, or the lesson may drift from your intent.
+      </div>
+
+      <div id="questionsSection" class="questions-section">
+        <div class="questions-heading">
+          <h4 class="pixel-font">CLARIFYING QUESTIONS</h4>
+          <span id="questionCount" class="question-count">0 OPEN</span>
+        </div>
+        <p class="tutor-hint">Answer what you can. Anything left blank becomes an explicit assumption in the brief.</p>
+        <div id="questionList" class="question-list"></div>
+      </div>
+
+      <div class="form-group" style="margin-top: 18px;">
+        <label for="additionalContext" class="form-label">EXTRA CONTEXT / CORRECTIONS FOR THE TUTOR (OPTIONAL):</label>
+        <textarea
+          id="additionalContext"
+          class="pixel-textarea"
+          rows="2"
+          placeholder="e.g. This is for a Year 8 class. They already know variables. Please include a worked example."
+        ></textarea>
+      </div>
+
+      <div class="tutor-actions">
+        <button id="iterateBtn" type="button" class="pixel-btn secondary">🔁 REFINE DESIGN</button>
+        <button id="generateBtn" type="button" class="pixel-btn">✅ GENERATE ALIGNED LESSON ➔</button>
+      </div>
+      <p class="tutor-hint" style="margin-top: 10px; text-align: right;">
+        Generating with open questions will turn them into tutor assumptions - refine first if alignment matters.
+      </p>
     </div>
 
     <!-- Quick Access / Recent Lessons -->

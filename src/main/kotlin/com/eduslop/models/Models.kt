@@ -72,7 +72,22 @@ data class Lesson(
 @Serializable
 data class GenerateLessonRequest(
     val prompt: String,
-    val apiKey: String? = null
+    val apiKey: String? = null,
+    val designBrief: DesignBrief? = null
+)
+
+@Serializable
+data class ServerConfig(
+    val mode: String,
+    val model: String,
+    val geminiKeyConfigured: Boolean,
+    val mockRequiresUseMock: Boolean = true
+)
+
+@Serializable
+data class ApiError(
+    val error: String,
+    val code: String = "error"
 )
 
 @Serializable

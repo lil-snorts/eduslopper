@@ -311,6 +311,338 @@ body {
 }
 
 /* ============================================================
+   TUTOR DESIGN REVIEW (STEP 2)
+   ============================================================ */
+
+[hidden] {
+  display: none !important;
+}
+
+.form-step-label,
+.step-kicker {
+  font-size: 10px;
+  color: var(--neon-amber);
+  margin-bottom: 12px;
+}
+
+.creator-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.creator-hint {
+  color: var(--text-muted);
+  font-size: 17px;
+  max-width: 520px;
+}
+
+.system-status {
+  font-family: 'VT323', monospace;
+  font-size: 17px;
+  color: var(--text-muted);
+  border-left: 3px solid var(--border-color);
+  padding-left: 10px;
+}
+
+.system-status.live {
+  color: var(--neon-green);
+  border-left-color: var(--neon-green);
+}
+
+.system-status.mock {
+  color: var(--neon-amber);
+  border-left-color: var(--neon-amber);
+}
+
+.system-status.error {
+  color: #ff5f5f;
+  border-left-color: #ff5f5f;
+}
+
+.tutor-panel {
+  border-color: var(--neon-amber);
+  margin-top: 0;
+}
+
+.tutor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.tutor-header h3 {
+  font-size: 13px;
+  color: var(--neon-amber);
+  margin-top: 4px;
+}
+
+.iteration-badge {
+  font-size: 10px;
+  background: var(--bg-card-alt);
+  color: var(--neon-cyan);
+  border: 2px solid var(--border-color);
+  padding: 5px 8px;
+  box-shadow: var(--pixel-shadow-sm);
+  white-space: nowrap;
+}
+
+.tutor-message {
+  background: #080b11;
+  border-left: 4px solid var(--neon-amber);
+  color: var(--text-main);
+  font-size: 19px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+}
+
+.design-brief {
+  background: #0e1520;
+  border: 2px solid var(--border-color);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.brief-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+  margin-bottom: 16px;
+}
+
+.brief-item {
+  min-width: 0;
+}
+
+.brief-label {
+  display: block;
+  font-size: 9px;
+  color: var(--neon-cyan);
+  margin-bottom: 5px;
+}
+
+.brief-value {
+  color: var(--text-main);
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.brief-value.aligned {
+  color: var(--neon-green);
+}
+
+.brief-value.open {
+  color: var(--neon-amber);
+}
+
+.brief-section {
+  margin-top: 14px;
+}
+
+.brief-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.brief-list li {
+  color: var(--text-main);
+  padding-left: 16px;
+  position: relative;
+  margin-bottom: 3px;
+}
+
+.brief-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--neon-amber);
+}
+
+.outline-list {
+  list-style: none;
+  counter-reset: outline;
+  margin: 0;
+  padding: 0;
+}
+
+.outline-list li {
+  counter-increment: outline;
+  position: relative;
+  padding-left: 28px;
+  margin-bottom: 5px;
+  color: var(--text-main);
+}
+
+.outline-list li::before {
+  content: counter(outline);
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  background: var(--neon-amber);
+  color: #000;
+}
+
+.outline-list strong {
+  color: var(--neon-cyan);
+  font-weight: normal;
+}
+
+.outline-purpose {
+  color: var(--text-muted);
+}
+
+.stale-warning {
+  background: #2a1c00;
+  border: 2px solid var(--neon-amber);
+  color: var(--neon-amber);
+  padding: 10px 12px;
+  margin-bottom: 18px;
+  font-size: 18px;
+}
+
+.questions-section {
+  margin-top: 8px;
+}
+
+.questions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 2px dashed var(--border-color);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.questions-heading h4 {
+  font-size: 12px;
+  color: var(--text-main);
+}
+
+.question-count {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--neon-amber);
+  border: 1px solid var(--neon-amber);
+  padding: 4px 6px;
+}
+
+.question-count.aligned {
+  color: var(--neon-green);
+  border-color: var(--neon-green);
+}
+
+.tutor-hint {
+  color: var(--text-muted);
+  font-size: 17px;
+}
+
+.question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.question-card {
+  background: var(--bg-card-alt);
+  border: 2px solid var(--border-color);
+  padding: 14px;
+}
+
+.question-title {
+  font-size: 21px;
+  color: var(--text-main);
+  margin-bottom: 3px;
+}
+
+.question-why {
+  color: var(--text-muted);
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.suggestion-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.suggestion-pill {
+  font-family: 'VT323', monospace;
+  font-size: 17px;
+  background: #0b111a;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.suggestion-pill:hover {
+  color: var(--neon-cyan);
+  border-color: var(--neon-cyan);
+}
+
+.suggestion-pill.selected {
+  background: var(--neon-cyan);
+  color: #001016;
+  border: 1px solid #fff;
+  box-shadow: var(--pixel-shadow-sm);
+}
+
+.question-answer {
+  margin-bottom: 8px;
+}
+
+.skip-link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.skip-link:hover {
+  color: var(--neon-amber);
+}
+
+.no-questions {
+  background: #0a1a0e;
+  border: 2px solid var(--neon-green);
+  color: var(--neon-green);
+  padding: 12px 14px;
+  font-size: 18px;
+}
+
+.tutor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+/* ============================================================
    LESSON VIEW SPECIFICS
    ============================================================ */
 
@@ -749,5 +1081,23 @@ body {
   }
   .question-prompt {
     font-size: 11px;
+  }
+  .brief-grid {
+    grid-template-columns: 1fr;
+  }
+  .creator-actions,
+  .tutor-actions {
+    align-items: stretch;
+  }
+  .creator-hint {
+    max-width: none;
+  }
+  .tutor-actions .pixel-btn,
+  .creator-actions .pixel-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .tutor-header {
+    flex-direction: column;
   }
 }

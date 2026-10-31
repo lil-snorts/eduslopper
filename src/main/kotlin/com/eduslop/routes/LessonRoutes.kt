@@ -33,7 +33,7 @@ fun Route.lessonRoutes(
             if (request.prompt.isBlank()) {
                 return@post call.respond(HttpStatusCode.BadRequest, "Prompt cannot be empty")
             }
-            val lesson = googleAdkService.generateLesson(request.prompt, request.apiKey)
+            val lesson = googleAdkService.generateLesson(request.prompt, request.apiKey, request.designBrief)
             lessonRepository.save(lesson)
             call.respond(HttpStatusCode.Created, lesson)
         }
