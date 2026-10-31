@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDUSLOP - 2D Retro Educational Generator</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="crt-overlay"></div>
+
+  <!-- Site Header -->
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="brand">
+        <span class="brand-icon">🎮</span>
+        <h1 class="pixel-font">EDUSLOP // RETRO EDU</h1>
+      </a>
+      <span class="badge-tag pixel-font">GOOGLE ADK // 2D PIXEL</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="prompt-hero">
+      <h2 class="pixel-font">EDUCATIONAL CONTENT CREATOR</h2>
+      <p>Powered by Google ADK (Agent Development Kit). Transform any topic into a 1-minute 2D pixel animation, interactive cue cards, and a stepped self-test.</p>
+    </section>
+
+    <!-- Creator Form Box -->
+    <div class="pixel-box highlight">
+      <div class="creator-form">
+        <div class="form-group">
+          <label for="topicPrompt" class="form-label">ENTER LESSON TOPIC OR PROMPT:</label>
+          <textarea 
+            id="topicPrompt" 
+            class="pixel-textarea" 
+            placeholder="e.g. How does Domain Driven Design work?"
+            rows="3"
+          >How does Domain Driven Design work</textarea>
+          
+          <div class="pill-container">
+            <span class="prompt-pill" data-prompt="How does Domain Driven Design work">⚡ Domain Driven Design</span>
+            <span class="prompt-pill" data-prompt="How do HashMaps and Hash Collisions work?">⚡ HashMaps & Collisions</span>
+            <span class="prompt-pill" data-prompt="Explain Event-Driven Architecture and Message Brokers">⚡ Event-Driven Architecture</span>
+            <span class="prompt-pill" data-prompt="TCP vs UDP: How internet packets travel">⚡ TCP vs UDP</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="geminiApiKey" class="form-label">GEMINI API KEY (OPTIONAL - USES SERVER / FALLBACK IF BLANK):</label>
+          <input 
+            type="password" 
+            id="geminiApiKey" 
+            class="pixel-input" 
+            placeholder="AIzaSy... (leave blank to use built-in generator)"
+          >
+        </div>
+
+        <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+          <button id="generateBtn" type="button" class="pixel-btn">
+            ⚡ GENERATE RETRO LESSON ➔
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading Terminal -->
+      <div id="loadingTerminal" class="loading-terminal">
+        <div id="terminalLogs"></div>
+        <span class="terminal-cursor"></span>
+      </div>
+    </div>
+
+    <!-- Quick Access / Recent Lessons -->
+    <div class="pixel-box" style="margin-top: 32px;">
+      <h3 class="pixel-font" style="font-size: 12px; margin-bottom: 14px; color: var(--neon-cyan);">
+        AVAILABLE SHOWCASE & IN-MEMORY LESSONS:
+      </h3>
+      <div id="existingLessonsList" style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <a href="/lesson/ddd-intro" class="pixel-btn secondary">▶ Domain Driven Design (DDD)</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/js/creator.js"></script>
+</body>
+</html>

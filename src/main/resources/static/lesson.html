@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson - EDUSLOP</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="crt-overlay"></div>
+
+  <!-- Site Header -->
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="brand">
+        <span class="brand-icon">🎮</span>
+        <h1 class="pixel-font">EDUSLOP // RETRO EDU</h1>
+      </a>
+      <a href="/" class="pixel-btn secondary" style="font-size: 10px; padding: 6px 12px;">
+        + NEW LESSON
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Lesson Title and Summary Header -->
+    <div class="lesson-meta-bar">
+      <div class="lesson-title-area">
+        <h2 id="lessonTopic" class="pixel-font">Loading Lesson...</h2>
+        <p id="lessonSummary">Please wait while the retro educational module boots...</p>
+      </div>
+      <span class="badge-tag pixel-font">~5-15 MIN MODULE</span>
+    </div>
+
+    <!-- ========================================================
+         SECTION 1: 2D PIXEL ANIMATION PLAYER (~1 MINUTE)
+         ======================================================== -->
+    <div class="section-banner">
+      <span class="step-num">PART 1</span>
+      <h3>2D PIXEL ANIMATION (~1 MINUTE)</h3>
+    </div>
+
+    <div class="player-container">
+      <!-- 16:9 Pixel Canvas -->
+      <div class="canvas-wrapper">
+        <canvas id="pixelCanvas"></canvas>
+      </div>
+
+      <!-- RPG-Style Dialogue Narration Box -->
+      <div class="dialogue-box">
+        <div class="dialogue-speaker">
+          <span id="sceneTitle">SCENE 1: INITIALIZING...</span>
+          <span style="color: var(--neon-cyan)">[ AUDIO-FREE // NARRATION SYNC ]</span>
+        </div>
+        <div id="dialogueText" class="dialogue-text">
+          Loading scenario script...
+        </div>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="player-controls">
+        <div class="player-btn-group">
+          <button id="playPauseBtn" type="button" class="pixel-btn">▶ PLAY</button>
+          <button id="restartBtn" type="button" class="pixel-btn secondary">↺ RESTART</button>
+          <button id="speedBtn" type="button" class="pixel-btn secondary">1.0x</button>
+        </div>
+
+        <div id="timelineBar" class="timeline-bar">
+          <div id="timelineProgress" class="timeline-progress"></div>
+        </div>
+
+        <div id="timeDisplay" class="time-display">0:00 / 1:00</div>
+      </div>
+    </div>
+
+    <!-- ========================================================
+         SECTION 2: CUE CARDS STACK
+         ======================================================== -->
+    <div class="section-banner" style="margin-top: 48px;">
+      <span class="step-num">PART 2</span>
+      <h3>INTERACTIVE CUE CARDS (CONCEPT REVIEW)</h3>
+    </div>
+
+    <div class="cue-cards-wrapper">
+      <div class="card-stage">
+        <div id="cueCardElement" class="cue-card">
+          <div class="card-header-row">
+            <span id="cardCategory" class="card-category">Core Concept</span>
+            <span id="cardSideIndicator" class="card-side-indicator">[ FRONT : PROMPT ]</span>
+          </div>
+
+          <div class="card-body-content">
+            <h4 id="cardTitleText" class="card-title-text">Concept Name</h4>
+            <div id="cardDescText" class="card-desc-text">Click the card to reveal the definition and takeaway...</div>
+          </div>
+
+          <div class="card-footer-tip">
+            ( 💡 Click anywhere on card to flip )
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Navigation -->
+      <div class="cue-card-nav">
+        <button id="prevCardBtn" type="button" class="pixel-btn secondary">◀ PREVIOUS CARD</button>
+        <span id="cardIndexIndicator" class="card-index-indicator">CARD 1 / 5</span>
+        <button id="nextCardBtn" type="button" class="pixel-btn secondary">NEXT CARD ▶</button>
+      </div>
+    </div>
+
+    <!-- ========================================================
+         SECTION 3: STEPPED MULTI-CHOICE QUIZ
+         ======================================================== -->
+    <div id="quizSection" class="section-banner" style="margin-top: 54px;">
+      <span class="step-num">PART 3</span>
+      <h3>STEPPED MULTI-CHOICE ASSESSMENT</h3>
+    </div>
+
+    <div class="quiz-container">
+      <div class="quiz-header">
+        <span id="quizProgressLabel" class="quiz-progress-label">QUESTION 1 OF 4</span>
+        <div id="quizStepperDots" class="quiz-stepper-dots">
+          <!-- Populated dynamically: step dots -->
+        </div>
+      </div>
+
+      <!-- Current Question Prompt -->
+      <div id="questionPrompt" class="question-prompt">
+        Loading question...
+      </div>
+
+      <!-- 4 Option Radio Buttons -->
+      <div id="optionsList" class="options-list">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- Stepper Footer (Previous & Next/Submit buttons) -->
+      <div class="quiz-footer">
+        <button id="quizPrevBtn" type="button" class="pixel-btn secondary" style="visibility: hidden;">
+          ◀ PREVIOUS
+        </button>
+        <button id="quizNextBtn" type="button" class="pixel-btn" disabled>
+          NEXT QUESTION ➔
+        </button>
+      </div>
+    </div>
+
+    <!-- Quiz Results Banner (Shown upon submit) -->
+    <div id="quizResultsBanner" class="quiz-results-banner">
+      <h3 class="pixel-font" style="font-size: 18px; color: var(--neon-cyan);">
+        ★ ASSESSMENT EVALUATION COMPLETE ★
+      </h3>
+      <div id="resultsScoreDisplay" class="results-score-display">
+        SCORE: 4 / 4 (100%)
+      </div>
+      <p style="color: var(--text-muted); font-size: 18px;">
+        Test results recorded in-memory on the Kotlin server.
+      </p>
+
+      <div id="resultsBreakdown" class="results-breakdown">
+        <!-- Detailed feedback injected here -->
+      </div>
+
+      <div style="display: flex; justify-content: center; gap: 12px; margin-top: 24px;">
+        <button id="retakeQuizBtn" type="button" class="pixel-btn secondary">
+          ↺ RETAKE QUIZ
+        </button>
+        <a href="/" class="pixel-btn amber">
+          ⚡ CREATE NEW LESSON
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer style="text-align: center; padding: 40px 0 20px 0; color: var(--text-muted); font-size: 16px;">
+    EDUSLOP // Google ADK (Agent Development Kit) + Ktor Kotlin 21 + 2D Pixel Graphics // Hackathon Edition
+  </footer>
+
+  <script src="/static/js/pixel-engine.js"></script>
+  <script src="/static/js/lesson.js"></script>
+</body>
+</html>
