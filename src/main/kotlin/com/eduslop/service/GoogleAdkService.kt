@@ -1,8 +1,8 @@
 package com.eduslop.service
 
 import com.eduslop.models.*
-import com.eduslop.util.EnvLoader
 import com.google.adk.agents.LlmAgent
+import kotlinx.coroutines.runBlocking
 import com.google.adk.events.Event
 import com.google.adk.runner.Runner
 import com.google.adk.sessions.InMemorySessionService
@@ -31,7 +31,7 @@ class GoogleAdkService {
     val rootAgent: LlmAgent = LlmAgent.builder()
         .name("eduslop_retro_educator_agent")
         .description("An educational AI agent built on Google ADK that designs 2D pixel art micro-lessons, cue cards, and stepped quizzes.")
-        .model("gemini-2.0-flash")
+        .model(AiConfig.model())
         .instruction(
             """
             You are the EDUSLOP Educational Agent built with the Google Agent Development Kit (ADK).
@@ -74,82 +74,28 @@ class GoogleAdkService {
         userProvidedApiKey: String? = null,
         designBrief: DesignBrief? = null
     ): Lesson {
-        val apiKey = userProvidedApiKey?.takeIf { it.isNotBlank() }
-            ?: EnvLoader.get("GEMINI_API_KEY")
-            ?: EnvLoader.get("GOOGLE_API_KEY")
-
-        if (apiKey == null) {
-            logger.info("Google ADK: No API key supplied. Falling back to built-in lesson generator for: {}", prompt)
+        if (AiConfig.useMock()) {
+            logger.info("USE_MOCK=true: returning deterministic mock lesson for: {}", prompt)
             return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
         }
 
-        // Ensure both properties are set for ADK and GenAI client internals
+        val apiKey = AiConfig.requireApiKey(userProvidedApiKey)
+
+        // Ensure both properties are set for client internals.
         System.setProperty("GEMINI_API_KEY", apiKey)
         System.setProperty("GOOGLE_API_KEY", apiKey)
 
-        try {
-            logger.info("Executing Google ADK Agent for prompt: {}", prompt)
-            val userId = "teacher_" + UUID.randomUUID().toString().substring(0, 6)
-            val sessionId = "session_" + UUID.randomUUID().toString().substring(0, 6)
-
-            // Create in-memory session in ADK
-            val session = sessionService.createSession("eduslop_app", userId, null, sessionId).blockingGet()
-
-            val generationInstruction = buildString {
-                append("Generate a complete 2D retro pixel educational micro-lesson for the following topic: \"$prompt\"")
-                if (designBrief != null) {
-                    append("\n\n")
-                    append(DesignBriefFormatter.generationContext(designBrief))
-                    append("\n\nThe animation, cue cards, and quiz must all serve the agreed audience, objectives, and must-cover content above.")
-                }
-            }
-
-            val content = Content.fromParts(
-                Part.fromText(generationInstruction)
-            )
-
-            val flowable = runner.runAsync(session, content, null)
-
-            var lastResponseText = ""
-            flowable.blockingForEach { event: Event ->
-                val text = event.stringifyContent()
-                if (!text.isNullOrBlank()) {
-                    lastResponseText = text
-                }
-            }
-
-            if (lastResponseText.isBlank()) {
-                logger.warn("Google ADK returned empty response. Utilizing fallback.")
-                return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
-            }
-
-            val cleanedJson = lastResponseText
-                .removePrefix("```json")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
-
-            @Serializable
-            data class GeneratedPayload(
-                val topic: String,
-                val summary: String,
-                val animation: PixelAnimation,
-                val cueCards: List<CueCard>,
-                val quiz: List<QuizQuestion>
-            )
-
-            val payload = json.decodeFromString<GeneratedPayload>(cleanedJson)
-            return Lesson(
-                id = UUID.randomUUID().toString().substring(0, 8),
-                topic = payload.topic,
-                summary = payload.summary,
-                animation = payload.animation,
-                cueCards = payload.cueCards,
-                quiz = payload.quiz
-            )
+        return try {
+            logger.info("Generating lesson with {} for prompt: {}", AiConfig.model(), prompt)
+            runBlocking { GeminiService().generateLesson(prompt, apiKey, designBrief) }
+        } catch (e: AiGenerationException) {
+            throw e
         } catch (e: Exception) {
-            logger.error("Google ADK execution encountered error: {}. Utilizing resilient fallback.", e.message, e)
-            return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
+            logger.error("Lesson generation failed for model '{}': {}", AiConfig.model(), e.message, e)
+            throw AiGenerationException(
+                "Gemini generation failed using model '${AiConfig.model()}': ${e.message ?: e.javaClass.simpleName}",
+                e
+            )
         }
     }
 }

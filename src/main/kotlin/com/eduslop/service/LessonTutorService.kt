@@ -1,11 +1,11 @@
 package com.eduslop.service
 
 import com.eduslop.models.ClarifyingQuestion
+
 import com.eduslop.models.DesignBeat
 import com.eduslop.models.DesignBrief
 import com.eduslop.models.DesignBriefResponse
 import com.eduslop.models.DesignIterationRequest
-import com.eduslop.util.EnvLoader
 import com.google.adk.agents.LlmAgent
 import com.google.adk.events.Event
 import com.google.adk.runner.Runner
@@ -16,6 +16,56 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.util.UUID
+
+private val TUTOR_INSTRUCTION = """
+You are EDUSLOP's Design Tutor, an expert instructional designer working with a teacher BEFORE any lesson content is generated.
+Your job is to turn a rough prompt into a shared lesson design brief that both you and the teacher agree on.
+
+A complete brief covers:
+- topic
+- audience (age, grade, or experience level)
+- learning objective(s): what learners should be able to do afterwards
+- prior knowledge
+- must-cover content: key vocabulary, a concrete example, or a known misconception
+- a short proposed outline of 3-5 lesson beats
+- tone / visual theme for the retro pixel lesson
+- explicit assumptions
+
+Ask clarifying questions ONLY for intent that is genuinely missing and would materially change the lesson.
+Priority order: audience, objective, prior knowledge, must-cover content or misconception, tone.
+Do not ask for information already present in the prompt or previousBrief answers.
+Do not ask generic questions such as "what else?" or "tell me more".
+First pass: ask at most 4 questions. Later passes: ask at most 2.
+If answers are supplied, incorporate them and prefer an explicit assumption over asking the same thing again.
+If the prompt is already detailed enough, return no clarifying questions.
+Each clarifying question must have a stable snake_case id (for example audience, objective, prior_knowledge, must_cover, tone), a short whyItMatters, and 2-4 concrete selectable suggestions.
+
+Return pure JSON only, matching this exact structure:
+{
+  "tutorMessage": "One or two friendly sentences about what you inferred and what you still need.",
+  "topic": "Short lesson topic",
+  "summary": "One or two sentence design summary",
+  "audience": "Who the lesson is for",
+  "learningObjectives": ["Concrete objective"],
+  "tone": "Retro visual tone",
+  "keyConcepts": ["Key concept or must-cover item"],
+  "proposedOutline": [
+    { "title": "Hook", "purpose": "Why the topic matters to this audience." },
+    { "title": "Core idea", "purpose": "The central concept visualised." }
+  ],
+  "assumptions": ["Explicit assumption you made"],
+  "clarifyingQuestions": [
+    {
+      "id": "audience",
+      "question": "Who is this lesson for?",
+      "whyItMatters": "Audience changes vocabulary and difficulty.",
+      "suggestions": ["Middle school (ages 11-14)", "High school (ages 14-18)"],
+      "required": true
+    }
+  ],
+  "revisedPrompt": "A self-contained prompt that includes the agreed topic, audience, objectives, prior knowledge, must-cover content, tone, and constraints."
+}
+""".trimIndent()
 
 /**
  * Tutor that iterates the initial lesson design with the teacher before content
@@ -39,7 +89,7 @@ class LessonTutorService {
     val designTutorAgent: LlmAgent = LlmAgent.builder()
         .name("eduslop_design_tutor_agent")
         .description("An instructional-design tutor that clarifies a teacher's intent and produces an agreed lesson design brief before generation.")
-        .model("gemini-2.0-flash")
+        .model(AiConfig.model())
         .instruction(
             """
             You are EDUSLOP's Design Tutor, an expert instructional designer working with a teacher BEFORE any lesson content is generated.
@@ -95,44 +145,29 @@ class LessonTutorService {
 
     private val runner = Runner(designTutorAgent, APP_NAME, null, sessionService)
 
-    fun iterateDesign(request: DesignIterationRequest): DesignBriefResponse {
-        val apiKey = request.apiKey?.takeIf { it.isNotBlank() }
-            ?: EnvLoader.get("GEMINI_API_KEY")
-            ?: EnvLoader.get("GOOGLE_API_KEY")
-
-        if (apiKey == null) {
-            logger.info("Design tutor: no API key supplied. Using deterministic design fallback.")
+    suspend fun iterateDesign(request: DesignIterationRequest): DesignBriefResponse {
+        if (AiConfig.useMock()) {
+            logger.info("USE_MOCK=true: using deterministic design tutor for prompt: {}", request.prompt)
             return FallbackDesignTutor.iterate(request)
         }
+
+        val apiKey = AiConfig.requireApiKey(request.apiKey)
 
         System.setProperty("GEMINI_API_KEY", apiKey)
         System.setProperty("GOOGLE_API_KEY", apiKey)
 
         return try {
             logger.info(
-                "Executing design tutor pass {} for prompt: {}",
+                "Executing design tutor ({}) pass {} for prompt: {}",
+                AiConfig.model(),
                 request.iteration + 1,
                 request.prompt
             )
-            val userId = "teacher_" + UUID.randomUUID().toString().substring(0, 6)
-            val sessionId = "tutor_session_" + UUID.randomUUID().toString().substring(0, 6)
-            val session = sessionService.createSession(APP_NAME, userId, null, sessionId).blockingGet()
-
-            val content = Content.fromParts(Part.fromText(buildTutorInput(request)))
-            val flowable = runner.runAsync(session, content, null)
-
-            var lastResponseText = ""
-            flowable.blockingForEach { event: Event ->
-                val text = event.stringifyContent()
-                if (!text.isNullOrBlank()) {
-                    lastResponseText = text
-                }
-            }
-
-            if (lastResponseText.isBlank()) {
-                logger.warn("Design tutor returned an empty response. Utilizing fallback.")
-                return FallbackDesignTutor.iterate(request)
-            }
+            val lastResponseText = GeminiService().generateText(
+                systemPrompt = TUTOR_INSTRUCTION,
+                userPrompt = buildTutorInput(request),
+                apiKey = apiKey
+            )
 
             val cleanedJson = lastResponseText
                 .removePrefix("```json")
@@ -184,9 +219,14 @@ class LessonTutorService {
                 iteration = request.iteration + 1,
                 readyToGenerate = ready
             )
+        } catch (e: AiGenerationException) {
+            throw e
         } catch (e: Exception) {
-            logger.error("Design tutor execution failed: {}. Utilizing deterministic fallback.", e.message, e)
-            FallbackDesignTutor.iterate(request)
+            logger.error("Design tutor execution failed: {}", e.message, e)
+            throw AiGenerationException(
+                "Tutor review failed using model '${AiConfig.model()}': ${e.message ?: e.javaClass.simpleName}",
+                e
+            )
         }
     }
 

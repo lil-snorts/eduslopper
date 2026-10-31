@@ -340,6 +340,29 @@ body {
   max-width: 520px;
 }
 
+.system-status {
+  font-family: 'VT323', monospace;
+  font-size: 17px;
+  color: var(--text-muted);
+  border-left: 3px solid var(--border-color);
+  padding-left: 10px;
+}
+
+.system-status.live {
+  color: var(--neon-green);
+  border-left-color: var(--neon-green);
+}
+
+.system-status.mock {
+  color: var(--neon-amber);
+  border-left-color: var(--neon-amber);
+}
+
+.system-status.error {
+  color: #ff5f5f;
+  border-left-color: #ff5f5f;
+}
+
 .tutor-panel {
   border-color: var(--neon-amber);
   margin-top: 0;

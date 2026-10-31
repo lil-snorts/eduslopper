@@ -1,11 +1,11 @@
 package com.eduslop.service
 
 import com.eduslop.models.*
-import com.eduslop.util.EnvLoader
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -54,6 +54,39 @@ class GeminiService {
         install(ContentNegotiation) {
             json(this@GeminiService.json)
         }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 180_000
+            connectTimeoutMillis = 30_000
+            socketTimeoutMillis = 180_000
+        }
+    }
+
+    suspend fun generateText(systemPrompt: String, userPrompt: String, apiKey: String): String {
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/${AiConfig.model()}:generateContent?key=$apiKey"
+        val requestBody = GeminiRequestBody(
+            contents = listOf(
+                GeminiContent(
+                    parts = listOf(GeminiPart("$systemPrompt\n\n$userPrompt"))
+                )
+            ),
+            generationConfig = GenerationConfig(response_mime_type = "text/plain")
+        )
+        val httpResponse: HttpResponse = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+            setBody(requestBody)
+        }
+        if (!httpResponse.status.isSuccess()) {
+            val errorBody = httpResponse.bodyAsText()
+            throw AiGenerationException(
+                "Gemini API returned ${httpResponse.status.value} for model '${AiConfig.model()}'. ${errorBody.take(300)}"
+            )
+        }
+        val geminiResponse = httpResponse.body<GeminiResponse>()
+        val rawText = geminiResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+        if (rawText.isNullOrBlank()) {
+            throw AiGenerationException("Gemini returned an empty response for model '${AiConfig.model()}'.")
+        }
+        return rawText
     }
 
     suspend fun generateLesson(
@@ -61,17 +94,15 @@ class GeminiService {
         userProvidedApiKey: String? = null,
         designBrief: DesignBrief? = null
     ): Lesson {
-        val apiKey = userProvidedApiKey?.takeIf { it.isNotBlank() }
-            ?: EnvLoader.get("GEMINI_API_KEY")
-            ?: EnvLoader.get("GOOGLE_API_KEY")
-
-        if (apiKey == null) {
-            logger.info("No Gemini API key supplied. Utilizing intelligent mock generation for: {}", prompt)
+        if (AiConfig.useMock()) {
+            logger.info("USE_MOCK=true: returning deterministic mock lesson for: {}", prompt)
             return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
         }
 
+        val apiKey = AiConfig.requireApiKey(userProvidedApiKey)
+
         try {
-            logger.info("Calling Gemini API for prompt: {}", prompt)
+            logger.info("Calling Gemini API ({}) for prompt: {}", AiConfig.model(), prompt)
             val systemPrompt = """
                 You are an expert educational content creator designing an interactive 2D pixel art micro-lesson for students.
                 The lesson consists of:
@@ -122,8 +153,7 @@ class GeminiService {
                 )
             )
 
-            // Primary model endpoint with fallback
-            val modelName = "gemini-1.5-flash"
+            val modelName = AiConfig.model()
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
 
             val httpResponse: HttpResponse = httpClient.post(url) {
@@ -133,16 +163,18 @@ class GeminiService {
 
             if (!httpResponse.status.isSuccess()) {
                 val errorBody = httpResponse.bodyAsText()
-                logger.error("Gemini API error ({}): {}", httpResponse.status, errorBody)
-                return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
+                logger.error("Gemini API error ({}) for model '{}': {}", httpResponse.status, modelName, errorBody)
+                throw AiGenerationException(
+                    "Gemini API returned ${httpResponse.status.value} for model '$modelName'. " +
+                        "Check the API key, model access, and quota. ${errorBody.take(300)}"
+                )
             }
 
             val geminiResponse = httpResponse.body<GeminiResponse>()
             val rawText = geminiResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
 
             if (rawText.isNullOrBlank()) {
-                logger.warn("Gemini returned empty candidate. Falling back.")
-                return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
+                throw AiGenerationException("Gemini returned an empty response for model '$modelName'.")
             }
 
             // Clean json in case Markdown code block fences are present
@@ -170,9 +202,14 @@ class GeminiService {
                 cueCards = payload.cueCards,
                 quiz = payload.quiz
             )
+        } catch (e: AiGenerationException) {
+            throw e
         } catch (e: Exception) {
             logger.error("Failed to generate lesson via Gemini API: {}", e.message, e)
-            return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
+            throw AiGenerationException(
+                "Gemini generation failed using model '${AiConfig.model()}': ${e.message ?: e.javaClass.simpleName}",
+                e
+            )
         }
     }
 }

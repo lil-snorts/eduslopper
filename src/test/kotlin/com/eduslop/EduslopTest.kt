@@ -8,8 +8,10 @@ import com.eduslop.models.QuizSubmissionRequest
 import com.eduslop.models.QuizSubmissionResult
 import com.eduslop.repository.LessonRepository
 import com.eduslop.repository.QuizRepository
+import com.eduslop.service.AiConfig
 import com.eduslop.service.DesignBriefFormatter
 import com.eduslop.service.FallbackDesignTutor
+import com.eduslop.service.GoogleAdkService
 import com.eduslop.service.MockLessonService
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -80,14 +82,38 @@ class EduslopTest {
 
     @Test
     fun testGoogleAdkRootAgentInitialization() {
-        val adkService = com.eduslop.service.GoogleAdkService()
+        val adkService = GoogleAdkService()
         assertNotNull(adkService.rootAgent)
         assertEquals("eduslop_retro_educator_agent", adkService.rootAgent.name())
+    }
 
-        // Test generation with fallback
-        val lesson = adkService.generateLesson("How does Domain Driven Design work")
-        assertNotNull(lesson)
-        assertEquals(60, lesson.animation.totalDurationSeconds)
+    @Test
+    fun testMockModeIsExplicitAndReturnsALessonWithoutAnApiKey() {
+        val previous = System.getProperty("USE_MOCK")
+        System.setProperty("USE_MOCK", "true")
+        try {
+            assertTrue(AiConfig.useMock())
+
+            val lesson = GoogleAdkService().generateLesson("How does Domain Driven Design work")
+            assertNotNull(lesson)
+            assertEquals(60, lesson.animation.totalDurationSeconds)
+        } finally {
+            if (previous == null) System.clearProperty("USE_MOCK") else System.setProperty("USE_MOCK", previous)
+        }
+    }
+
+    @Test
+    fun testMockModeRequiresAnExplicitEnabledValue() {
+        val previous = System.getProperty("USE_MOCK")
+        try {
+            System.setProperty("USE_MOCK", "false")
+            assertFalse(AiConfig.useMock())
+
+            System.setProperty("USE_MOCK", "1")
+            assertTrue(AiConfig.useMock())
+        } finally {
+            if (previous == null) System.clearProperty("USE_MOCK") else System.setProperty("USE_MOCK", previous)
+        }
     }
 
     @Test

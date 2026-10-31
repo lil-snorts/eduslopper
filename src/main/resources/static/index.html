@@ -48,13 +48,14 @@
         </div>
 
         <div class="form-group">
-          <label for="geminiApiKey" class="form-label">GEMINI API KEY (OPTIONAL - USES SERVER / FALLBACK IF BLANK):</label>
+          <label for="geminiApiKey" class="form-label">GEMINI API KEY (REQUIRED UNLESS THE SERVER RUNS WITH USE_MOCK=true):</label>
           <input
             type="password"
             id="geminiApiKey"
             class="pixel-input"
-            placeholder="AIzaSy... (leave blank to use built-in generator)"
+            placeholder="AIzaSy... (leave blank to use GEMINI_API_KEY from .env)"
           >
+          <div id="aiStatus" class="system-status">Checking generation mode...</div>
         </div>
 
         <div class="creator-actions">

@@ -77,6 +77,20 @@ data class GenerateLessonRequest(
 )
 
 @Serializable
+data class ServerConfig(
+    val mode: String,
+    val model: String,
+    val geminiKeyConfigured: Boolean,
+    val mockRequiresUseMock: Boolean = true
+)
+
+@Serializable
+data class ApiError(
+    val error: String,
+    val code: String = "error"
+)
+
+@Serializable
 data class QuizSubmissionRequest(
     val studentName: String = "Anonymous Student",
     val answers: Map<Int, Int> // questionId to selectedOptionIndex

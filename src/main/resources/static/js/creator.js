@@ -10,6 +10,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const promptInput = document.getElementById('topicPrompt');
   const apiKeyInput = document.getElementById('geminiApiKey');
+  const aiStatus = document.getElementById('aiStatus');
   const tutorBtn = document.getElementById('tutorBtn');
   const terminalEl = document.getElementById('loadingTerminal');
   const terminalLogs = document.getElementById('terminalLogs');
@@ -42,12 +43,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let answerDraft = {};
   let designPrompt = '';
   let isBusy = false;
+  let serverConfig = null;
 
   // Load saved API key from localStorage if present
   const savedKey = localStorage.getItem('eduslop_gemini_key');
   if (savedKey && apiKeyInput) {
     apiKeyInput.value = savedKey;
   }
+
+  loadAiStatus();
+  apiKeyInput.addEventListener('input', updateAiStatusForTypedKey);
 
   // Handle Preset Pills
   document.querySelectorAll('.prompt-pill').forEach((pill) => {
@@ -64,6 +69,53 @@ document.addEventListener('DOMContentLoaded', () => {
   tutorBtn.addEventListener('click', () => consultTutor(true));
   iterateBtn.addEventListener('click', () => consultTutor(false));
   generateBtn.addEventListener('click', generateLesson);
+
+  async function loadAiStatus() {
+    if (!aiStatus) return;
+    try {
+      const res = await fetch('/api/config');
+      if (!res.ok) throw new Error(`Config returned ${res.status}`);
+      serverConfig = await res.json();
+      updateAiStatusForTypedKey();
+    } catch (err) {
+      aiStatus.textContent = `Could not read server generation config: ${err.message}`;
+      aiStatus.className = 'system-status error';
+    }
+  }
+
+  function updateAiStatusForTypedKey() {
+    if (!aiStatus || !serverConfig) return;
+    const typedKey = apiKeyInput.value.trim();
+    if (serverConfig.mode === 'mock') {
+      aiStatus.textContent = 'DEMO MODE: USE_MOCK=true is set on the server. Mock lessons are returned without calling Gemini.';
+      aiStatus.className = 'system-status mock';
+    } else if (typedKey) {
+      aiStatus.textContent = `LIVE MODE: requests will use the API key from this form with ${serverConfig.model}.`;
+      aiStatus.className = 'system-status live';
+    } else if (serverConfig.geminiKeyConfigured) {
+      aiStatus.textContent = `LIVE MODE: using the server's GEMINI_API_KEY with ${serverConfig.model}.`;
+      aiStatus.className = 'system-status live';
+    } else {
+      aiStatus.textContent = `LIVE MODE: no Gemini API key detected. Enter one above, set GEMINI_API_KEY in .env, or run with USE_MOCK=true.`;
+      aiStatus.className = 'system-status error';
+    }
+  }
+
+  async function readErrorMessage(res) {
+    const fallback = `Server returned error ${res.status}`;
+    try {
+      const body = await res.text();
+      if (!body) return fallback;
+      try {
+        const parsed = JSON.parse(body);
+        return parsed.error || parsed.message || fallback;
+      } catch {
+        return body;
+      }
+    } catch {
+      return fallback;
+    }
+  }
 
   async function consultTutor(isFirstPass) {
     if (isBusy) return;
@@ -133,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
       clearTimeout(timer);
 
       if (!res.ok) {
-        throw new Error(`Tutor returned error ${res.status}`);
+        throw new Error(await readErrorMessage(res));
       }
 
       const data = await res.json();
@@ -429,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
       clearTimeout(step3Timer);
 
       if (!res.ok) {
-        throw new Error(`Server returned error ${res.status}`);
+        throw new Error(await readErrorMessage(res));
       }
 
       const lesson = await res.json();
