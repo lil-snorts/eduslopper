@@ -11,6 +11,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.util.UUID
@@ -61,33 +62,12 @@ class GeminiService {
         }
     }
 
-    suspend fun generateText(systemPrompt: String, userPrompt: String, apiKey: String): String {
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/${AiConfig.model()}:generateContent?key=$apiKey"
-        val requestBody = GeminiRequestBody(
-            contents = listOf(
-                GeminiContent(
-                    parts = listOf(GeminiPart("$systemPrompt\n\n$userPrompt"))
-                )
-            ),
-            generationConfig = GenerationConfig(response_mime_type = "text/plain")
+    suspend fun generateText(systemPrompt: String, userPrompt: String, apiKey: String): String =
+        callModelWithRetry(
+            parts = listOf(GeminiPart("$systemPrompt\n\n$userPrompt")),
+            apiKey = apiKey,
+            mimeType = "text/plain"
         )
-        val httpResponse: HttpResponse = httpClient.post(url) {
-            contentType(ContentType.Application.Json)
-            setBody(requestBody)
-        }
-        if (!httpResponse.status.isSuccess()) {
-            val errorBody = httpResponse.bodyAsText()
-            throw AiGenerationException(
-                "Gemini API returned ${httpResponse.status.value} for model '${AiConfig.model()}'. ${errorBody.take(300)}"
-            )
-        }
-        val geminiResponse = httpResponse.body<GeminiResponse>()
-        val rawText = geminiResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-        if (rawText.isNullOrBlank()) {
-            throw AiGenerationException("Gemini returned an empty response for model '${AiConfig.model()}'.")
-        }
-        return rawText
-    }
 
     suspend fun generateLesson(
         prompt: String,
@@ -133,49 +113,21 @@ class GeminiService {
                 }
             """.trimIndent()
 
-            val requestBody = GeminiRequestBody(
-                contents = listOf(
-                    GeminiContent(
-                        parts = listOf(
-                            GeminiPart(
-                                buildString {
-                                    append(systemPrompt)
-                                    append("\n\nGenerate the complete educational micro-lesson for the following topic: \"$prompt\"")
-                                    if (designBrief != null) {
-                                        append("\n\n")
-                                        append(DesignBriefFormatter.generationContext(designBrief))
-                                        append("\n\nThe animation, cue cards, and quiz must all serve the agreed audience, objectives, and must-cover content above.")
-                                    }
-                                }
-                            )
-                        )
-                    )
-                )
+            val userPrompt = buildString {
+                append("Generate the complete educational micro-lesson for the following topic: \"$prompt\"")
+                if (designBrief != null) {
+                    append("\n\n")
+                    append(DesignBriefFormatter.generationContext(designBrief))
+                    append("\n\nThe animation, cue cards, and quiz must all serve the agreed audience, objectives, and must-cover content above.")
+                }
+            }
+
+            val rawText = callModelWithRetry(
+                parts = listOf(GeminiPart("$systemPrompt\n\n$userPrompt")),
+                apiKey = apiKey,
+                mimeType = "application/json"
             )
 
-            val modelName = AiConfig.model()
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
-
-            val httpResponse: HttpResponse = httpClient.post(url) {
-                contentType(ContentType.Application.Json)
-                setBody(requestBody)
-            }
-
-            if (!httpResponse.status.isSuccess()) {
-                val errorBody = httpResponse.bodyAsText()
-                logger.error("Gemini API error ({}) for model '{}': {}", httpResponse.status, modelName, errorBody)
-                throw AiGenerationException(
-                    "Gemini API returned ${httpResponse.status.value} for model '$modelName'. " +
-                        "Check the API key, model access, and quota. ${errorBody.take(300)}"
-                )
-            }
-
-            val geminiResponse = httpResponse.body<GeminiResponse>()
-            val rawText = geminiResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-
-            if (rawText.isNullOrBlank()) {
-                throw AiGenerationException("Gemini returned an empty response for model '$modelName'.")
-            }
 
             // Clean json in case Markdown code block fences are present
             val cleanedJson = rawText
@@ -212,4 +164,56 @@ class GeminiService {
             )
         }
     }
+
+
+    private suspend fun callModel(model: String, parts: List<GeminiPart>, apiKey: String, mimeType: String): String {
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
+        val requestBody = GeminiRequestBody(
+            contents = listOf(GeminiContent(parts = parts)),
+            generationConfig = GenerationConfig(response_mime_type = mimeType)
+        )
+        val httpResponse: HttpResponse = httpClient.post(url) {
+            contentType(ContentType.Application.Json)
+            setBody(requestBody)
+        }
+        if (!httpResponse.status.isSuccess()) {
+            val errorBody = httpResponse.bodyAsText()
+            throw AiGenerationException(
+                "Gemini API returned ${httpResponse.status.value} for model '$model'. ${errorBody.take(300)}"
+            )
+        }
+        val geminiResponse = httpResponse.body<GeminiResponse>()
+        val rawText = geminiResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+        if (rawText.isNullOrBlank()) {
+            throw AiGenerationException("Gemini returned an empty response for model '$model'.")
+        }
+        return rawText
+    }
+
+    private suspend fun callModelWithRetry(parts: List<GeminiPart>, apiKey: String, mimeType: String): String {
+        val models = listOf(AiConfig.model()) + AiConfig.fallbackModels()
+        var lastError: Exception? = null
+        for (model in models) {
+            repeat(2) { attempt ->
+                try {
+                    logger.info("Calling Gemini model '{}' (attempt {})", model, attempt + 1)
+                    return callModel(model, parts, apiKey, mimeType)
+                } catch (e: Exception) {
+                    lastError = e
+                    val retryable = e is io.ktor.client.plugins.HttpRequestTimeoutException ||
+                        e.message?.contains("503") == true ||
+                        e.message?.contains("429") == true ||
+                        e.message?.contains("UNAVAILABLE") == true
+                    if (!retryable) throw e
+                    if (attempt == 0) {
+                        kotlinx.coroutines.delay(1500)
+                    } else {
+                        return@repeat
+                    }
+                }
+            }
+        }
+        throw lastError ?: AiGenerationException("Gemini request failed.")
+    }
+
 }

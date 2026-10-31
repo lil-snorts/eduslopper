@@ -22,6 +22,14 @@ object AiConfig {
     fun model(): String =
         EnvLoader.get("GEMINI_MODEL")?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULT_MODEL
 
+    /**
+     * Ordered fallback models used when the primary model is unavailable or
+     * overloaded. The primary model is never duplicated here.
+     */
+    fun fallbackModels(): List<String> =
+        listOf("gemini-3.6-flash", "gemini-3.5-flash-lite")
+            .filter { it != model() }
+
     fun apiKey(userProvided: String?): String? =
         userProvided?.trim()?.takeIf { it.isNotEmpty() }
             ?: EnvLoader.get("GEMINI_API_KEY")
