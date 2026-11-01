@@ -28,7 +28,7 @@ A complete brief covers:
 - prior knowledge
 - must-cover content: key vocabulary, a concrete example, or a known misconception
 - a short proposed outline of 3-5 lesson beats
-- tone / visual theme for the retro pixel lesson
+- tone / visual theme for the PlayStation 1 / GameCube styled lesson
 - explicit assumptions
 
 Ask clarifying questions ONLY for intent that is genuinely missing and would materially change the lesson.
@@ -102,7 +102,7 @@ class LessonTutorService {
             - prior knowledge
             - must-cover content: key vocabulary, a concrete example, or a known misconception
             - a short proposed outline of 3-5 lesson beats
-            - tone / visual theme for the retro pixel lesson
+            - tone / visual theme for the PlayStation 1 / GameCube styled lesson
             - explicit assumptions
 
             Ask clarifying questions ONLY for intent that is genuinely missing and would materially change the lesson.

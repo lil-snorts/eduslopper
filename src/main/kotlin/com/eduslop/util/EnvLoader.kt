@@ -31,9 +31,12 @@ object EnvLoader {
                     }
                     envMap[key] = value
 
-                    // Populate System properties so libraries like Google ADK can detect them
-                    System.setProperty(key, value)
-                    if (key == "GEMINI_API_KEY" && System.getProperty("GOOGLE_API_KEY") == null) {
+                    // Mirror into System properties so libraries like Google ADK can detect
+                    // them, but never clobber an explicit -D flag or a real environment variable.
+                    if (System.getProperty(key) == null && System.getenv(key) == null) {
+                        System.setProperty(key, value)
+                    }
+                    if (key == "GEMINI_API_KEY" && System.getProperty("GOOGLE_API_KEY") == null && System.getenv("GOOGLE_API_KEY") == null) {
                         System.setProperty("GOOGLE_API_KEY", value)
                     }
                 }
@@ -44,7 +47,13 @@ object EnvLoader {
         }
     }
 
+    /**
+     * Resolution order: explicit System properties (set via `-D` or at runtime),
+     * then real environment variables, then values loaded from `.env`. This keeps
+     * `.env` a fallback, so `USE_MOCK=true ./gradlew run` (and test overrides) win
+     * over a stale `.env` entry.
+     */
     fun get(key: String): String? {
-        return envMap[key] ?: System.getenv(key) ?: System.getProperty(key)
+        return System.getProperty(key) ?: System.getenv(key) ?: envMap[key]
     }
 }
