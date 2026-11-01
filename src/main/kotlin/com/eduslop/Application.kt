@@ -1,5 +1,11 @@
 package com.eduslop
 
+import com.eduslop.ai.AiGenerationException
+import com.eduslop.ai.DesignTutorService
+import com.eduslop.ai.DesignTutorServiceFactory
+import com.eduslop.ai.LessonService
+import com.eduslop.ai.LessonServiceFactory
+import com.eduslop.ai.MissingApiKeyException
 import com.eduslop.models.ApiError
 import com.eduslop.models.ServerConfig
 import com.eduslop.repository.LessonRepository
@@ -7,13 +13,6 @@ import com.eduslop.repository.QuizRepository
 import com.eduslop.routes.lessonRoutes
 import com.eduslop.routes.quizRoutes
 import com.eduslop.routes.tutorRoutes
-import com.eduslop.service.AiConfig
-import com.eduslop.service.AiGenerationException
-import com.eduslop.service.GoogleAdkService
-import com.eduslop.service.LessonTutorService
-import com.eduslop.service.MissingApiKeyException
-import com.eduslop.service.MockLessonService
-import com.eduslop.util.EnvLoader
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -29,7 +28,8 @@ import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 
 fun main() {
-    EnvLoader.loadDotEnv()
+    // `.env` and environment configuration is owned by the ai package; it loads
+    // lazily the first time a service is wired in module().
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
     embeddedServer(Netty, port = port, host = "0.0.0.0", module = Application::module)
         .start(wait = true)
@@ -74,26 +74,31 @@ fun Application.module() {
 
     val lessonRepository = LessonRepository()
     val quizRepository = QuizRepository()
-    val googleAdkService = GoogleAdkService()
-    val lessonTutorService = LessonTutorService()
 
-    // Pre-populate with our showcase Domain Driven Design lesson
-    val initialDddLesson = MockLessonService.createDddLesson()
+    // Pick implementations once, at wiring time, from USE_MOCK; the request
+    // flow only ever sees the public ports.
+    val lessonService: LessonService = LessonServiceFactory.create()
+    val designTutorService: DesignTutorService = DesignTutorServiceFactory.create()
+    logger.info("Lesson generation wired in '{}' mode", lessonService.mode)
+
+    // Pre-populate with our showcase Domain Driven Design lesson (deterministic
+    // content, seeded regardless of the active generation mode)
+    val initialDddLesson = LessonServiceFactory.showcaseLesson()
     lessonRepository.save(initialDddLesson)
     logger.info("Pre-seeded showcase lesson: {} (id: {})", initialDddLesson.topic, initialDddLesson.id)
 
     routing {
         // API routes
-        lessonRoutes(lessonRepository, googleAdkService)
-        tutorRoutes(lessonTutorService)
+        lessonRoutes(lessonRepository, lessonService)
+        tutorRoutes(designTutorService)
         quizRoutes(lessonRepository, quizRepository)
 
         get("/api/config") {
             call.respond(
                 ServerConfig(
-                    mode = if (AiConfig.useMock()) "mock" else "live",
-                    model = AiConfig.model(),
-                    geminiKeyConfigured = (AiConfig.apiKey(null) != null)
+                    mode = lessonService.mode,
+                    model = lessonService.model,
+                    geminiKeyConfigured = lessonService.serverKeyConfigured
                 )
             )
         }
@@ -103,8 +108,8 @@ fun Application.module() {
                 mapOf(
                     "status" to "UP",
                     "message" to "EDUSLOP retro education server active",
-                    "mode" to if (AiConfig.useMock()) "mock" else "live",
-                    "model" to AiConfig.model()
+                    "mode" to lessonService.mode,
+                    "model" to lessonService.model
                 )
             )
         }

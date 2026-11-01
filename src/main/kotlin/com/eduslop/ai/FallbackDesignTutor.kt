@@ -1,4 +1,4 @@
-package com.eduslop.service
+package com.eduslop.ai
 
 import com.eduslop.models.ClarifyingQuestion
 import com.eduslop.models.DesignBeat
@@ -12,7 +12,7 @@ import com.eduslop.models.DesignIterationRequest
  * can from the prompt, ask only for genuinely missing intent, and make every
  * remaining assumption explicit in the shared brief.
  */
-object FallbackDesignTutor {
+internal object FallbackDesignTutor {
 
     private val questionBank = listOf(
         ClarifyingQuestion(
@@ -140,7 +140,7 @@ object FallbackDesignTutor {
 
         val brief = DesignBrief(
             topic = topic,
-            summary = "A retro pixel micro-lesson on $topic for $resolvedAudience. Learning objective: $resolvedObjective.",
+            summary = "A PlayStation 1 / GameCube styled micro-lesson on $topic for $resolvedAudience. Learning objective: $resolvedObjective.",
             audience = resolvedAudience,
             learningObjectives = objectives.ifEmpty { listOf(resolvedObjective) },
             tone = tone,
@@ -241,7 +241,7 @@ object FallbackDesignTutor {
         tone: String,
         teacherContext: String?
     ): String = buildString {
-        appendLine("Create a 5-15 minute retro pixel micro-lesson about \"$topic\".")
+        appendLine("Create a 5-15 minute PlayStation 1 / GameCube styled micro-lesson about \"$topic\".")
         appendLine("Audience: $audience.")
         appendLine("Learning objectives: ${objectives.joinToString("; ")}.")
         if (!mustCover.isNullOrBlank()) appendLine("Must cover: $mustCover.")

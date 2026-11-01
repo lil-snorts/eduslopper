@@ -1,6 +1,4 @@
-package com.eduslop.service
-
-import com.eduslop.util.EnvLoader
+package com.eduslop.ai
 
 /**
  * Central place for deciding whether a request should call Gemini or use the
@@ -10,8 +8,11 @@ import com.eduslop.util.EnvLoader
  * - A live Gemini call always needs an API key (from the request, `.env`, or env vars).
  * - The mock is only used when `USE_MOCK=true` is set explicitly.
  * - API failures never silently degrade to mock output; the caller gets an error.
+ *
+ * Internal to the ai package: callers outside it use only the public ports [LessonService] and
+ * [DesignTutorService], whose implementations are selected at wiring time.
  */
-object AiConfig {
+internal object AiConfig {
     const val DEFAULT_MODEL = "gemini-3.8-flash"
 
     fun useMock(): Boolean {
@@ -42,11 +43,3 @@ object AiConfig {
     fun requireApiKey(userProvided: String?): String =
         apiKey(userProvided) ?: throw MissingApiKeyException()
 }
-
-class MissingApiKeyException : RuntimeException(
-    "No Gemini API key configured. Add a key in the UI, set GEMINI_API_KEY in .env, " +
-        "or start the server with USE_MOCK=true for offline demo mode."
-)
-
-class AiGenerationException(message: String, cause: Throwable? = null) :
-    RuntimeException(message, cause)

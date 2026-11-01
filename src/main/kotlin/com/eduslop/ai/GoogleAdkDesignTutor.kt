@@ -1,4 +1,4 @@
-package com.eduslop.service
+package com.eduslop.ai
 
 import com.eduslop.models.ClarifyingQuestion
 
@@ -28,7 +28,7 @@ A complete brief covers:
 - prior knowledge
 - must-cover content: key vocabulary, a concrete example, or a known misconception
 - a short proposed outline of 3-5 lesson beats
-- tone / visual theme for the retro pixel lesson
+- tone / visual theme for the PlayStation 1 / GameCube styled lesson
 - explicit assumptions
 
 Ask clarifying questions ONLY for intent that is genuinely missing and would materially change the lesson.
@@ -72,8 +72,12 @@ Return pure JSON only, matching this exact structure:
  * generation. Its output is a [DesignBrief] which becomes the contract for the
  * generator, so questions answered here are honoured by the final lesson.
  */
-class LessonTutorService {
-    private val logger = LoggerFactory.getLogger(LessonTutorService::class.java)
+internal class GoogleAdkDesignTutor(
+    // Captured once at wiring time (like LessonServiceFactory) so iterateDesign
+    // never reads USE_MOCK per request.
+    private val useMock: Boolean = AiConfig.useMock()
+) : DesignTutorService {
+    private val logger = LoggerFactory.getLogger(GoogleAdkDesignTutor::class.java)
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -102,7 +106,7 @@ class LessonTutorService {
             - prior knowledge
             - must-cover content: key vocabulary, a concrete example, or a known misconception
             - a short proposed outline of 3-5 lesson beats
-            - tone / visual theme for the retro pixel lesson
+            - tone / visual theme for the PlayStation 1 / GameCube styled lesson
             - explicit assumptions
 
             Ask clarifying questions ONLY for intent that is genuinely missing and would materially change the lesson.
@@ -145,9 +149,9 @@ class LessonTutorService {
 
     private val runner = Runner(designTutorAgent, APP_NAME, null, sessionService)
 
-    suspend fun iterateDesign(request: DesignIterationRequest): DesignBriefResponse {
-        if (AiConfig.useMock()) {
-            logger.info("USE_MOCK=true: using deterministic design tutor for prompt: {}", request.prompt)
+    override suspend fun iterateDesign(request: DesignIterationRequest): DesignBriefResponse {
+        if (useMock) {
+            logger.info("Mock mode: using deterministic design tutor for prompt: {}", request.prompt)
             return FallbackDesignTutor.iterate(request)
         }
 

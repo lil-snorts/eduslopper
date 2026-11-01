@@ -1,14 +1,14 @@
 package com.eduslop.routes
 
 import com.eduslop.models.DesignIterationRequest
-import com.eduslop.service.LessonTutorService
+import com.eduslop.ai.DesignTutorService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
-fun Route.tutorRoutes(lessonTutorService: LessonTutorService) {
+fun Route.tutorRoutes(designTutorService: DesignTutorService) {
     route("/api/tutor") {
         /**
          * Iterates the initial lesson design with the teacher. The first call
@@ -20,7 +20,7 @@ fun Route.tutorRoutes(lessonTutorService: LessonTutorService) {
             if (request.prompt.isBlank()) {
                 return@post call.respond(HttpStatusCode.BadRequest, "Prompt cannot be empty")
             }
-            call.respond(lessonTutorService.iterateDesign(request))
+            call.respond(designTutorService.iterateDesign(request))
         }
     }
 }

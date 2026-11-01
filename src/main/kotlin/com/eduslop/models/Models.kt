@@ -29,7 +29,7 @@ data class AnimationScene(
     val title: String,
     val durationSeconds: Int,
     val narration: String,
-    val background: String = "retro_dark", // "retro_dark", "blueprint_blue", "terminal_green", "cyber_purple"
+    val background: String = "retro_dark", // free-form PlayStation 1 / GameCube styled theme name
     val entities: List<PixelEntity> = emptyList(),
     val actions: List<SceneAction> = emptyList()
 )

@@ -1,4 +1,4 @@
-package com.eduslop.service
+package com.eduslop.ai
 
 import com.eduslop.models.*
 import io.ktor.client.*
@@ -42,7 +42,7 @@ private data class GeminiResponse(
     val candidates: List<GeminiCandidate>? = null
 )
 
-class GeminiService {
+internal class GeminiService {
     private val logger = LoggerFactory.getLogger(GeminiService::class.java)
 
     private val json = Json {
@@ -74,17 +74,12 @@ class GeminiService {
         userProvidedApiKey: String? = null,
         designBrief: DesignBrief? = null
     ): Lesson {
-        if (AiConfig.useMock()) {
-            logger.info("USE_MOCK=true: returning deterministic mock lesson for: {}", prompt)
-            return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
-        }
-
         val apiKey = AiConfig.requireApiKey(userProvidedApiKey)
 
         try {
             logger.info("Calling Gemini API ({}) for prompt: {}", AiConfig.model(), prompt)
             val systemPrompt = """
-                You are an expert educational content creator designing an interactive 2D pixel art micro-lesson for students.
+                You are an expert educational content creator designing an interactive micro-lesson in PlayStation 1 / GameCube styled graphics for students.
                 The lesson consists of:
                 1. A 2D pixel animation (~60 seconds total, divided into 3 to 5 scenes, each 10-15s).
                    - Each scene must have:
@@ -92,7 +87,7 @@ class GeminiService {
                      - title (string)
                      - durationSeconds (integer, e.g. 12 to 15)
                      - narration (engaging script text to be displayed in a dialogue box matching the visuals)
-                     - background: one of ["retro_dark", "blueprint_blue", "terminal_green", "cyber_purple"]
+                     - background: a free-form visual theme name inferred from the lesson and user input (PlayStation 1 / GameCube styled graphics); any string is allowed
                      - entities: list of 2-4 pixel entities with id, name, sprite (one of: "character", "database", "aggregate", "service", "bounded_context", "event", "box", "user", "cloud", "model"), x (10 to 90), y (20 to 80), color (hex e.g. "#00f0ff"), label.
                      - actions: list of 1-3 simple actions with type ("move", "pulse", "connect", "highlight"), target (entity id), toX, toY, duration (seconds), label.
                 2. Cue cards (4 to 6 flashcards):

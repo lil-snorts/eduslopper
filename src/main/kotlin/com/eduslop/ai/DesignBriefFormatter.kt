@@ -1,4 +1,4 @@
-package com.eduslop.service
+package com.eduslop.ai
 
 import com.eduslop.models.DesignBrief
 
@@ -7,7 +7,7 @@ import com.eduslop.models.DesignBrief
  * lesson generator. Keeping this in one place ensures the ADK agent, the direct
  * Gemini client, and the offline fallback all honour the same design contract.
  */
-object DesignBriefFormatter {
+internal object DesignBriefFormatter {
 
     fun generationContext(brief: DesignBrief): String = buildString {
         appendLine("AGREED LESSON DESIGN BRIEF (this is authoritative - do not contradict it):")

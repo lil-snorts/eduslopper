@@ -1,9 +1,27 @@
-package com.eduslop.service
+package com.eduslop.ai
 
 import com.eduslop.models.*
+import org.slf4j.LoggerFactory
 import java.util.UUID
 
-object MockLessonService {
+/**
+ * Deterministic offline [LessonService] implementation, wired by
+ * [LessonServiceFactory] when USE_MOCK is enabled. Needs no API key.
+ */
+internal class MockLessonService : LessonService {
+
+    private val logger = LoggerFactory.getLogger(MockLessonService::class.java)
+
+    override val mode: String = "mock"
+
+    override fun generateLesson(
+        prompt: String,
+        userProvidedApiKey: String?,
+        designBrief: DesignBrief?
+    ): Lesson {
+        logger.info("Mock mode: returning deterministic mock lesson for: {}", prompt)
+        return createFallbackLessonForPrompt(prompt, designBrief)
+    }
 
     fun createDddLesson(): Lesson {
         val animation = PixelAnimation(

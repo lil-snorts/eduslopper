@@ -68,6 +68,10 @@ Once started, open your browser at:
 The creator UI shows the active mode (live or mock) and a clear error if a live
 request cannot run.
 
+Config resolution order is `-D` system properties → real environment variables →
+`.env`, so an explicit `USE_MOCK=true ./gradlew run` always overrides a stale
+`.env` entry (and vice versa: remove `USE_MOCK` from `.env` to run live by default).
+
 ---
 
 ## 🧑‍🏫 Tutor-Led Design Flow

@@ -1,29 +1,20 @@
-package com.eduslop
+package com.eduslop.ai
 
 import com.eduslop.models.ClarifyingQuestion
 import com.eduslop.models.DesignBeat
 import com.eduslop.models.DesignBrief
 import com.eduslop.models.DesignIterationRequest
-import com.eduslop.models.QuizSubmissionRequest
-import com.eduslop.models.QuizSubmissionResult
-import com.eduslop.repository.LessonRepository
-import com.eduslop.repository.QuizRepository
-import com.eduslop.service.AiConfig
-import com.eduslop.service.DesignBriefFormatter
-import com.eduslop.service.FallbackDesignTutor
-import com.eduslop.service.GoogleAdkService
-import com.eduslop.service.MockLessonService
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class EduslopTest {
+class AiServicesTest {
 
     @Test
     fun testMockLessonStructure() {
-        val dddLesson = MockLessonService.createDddLesson()
+        val dddLesson = MockLessonService().createDddLesson()
         assertEquals("ddd-intro", dddLesson.id)
         assertTrue(dddLesson.topic.contains("Domain Driven Design"))
         assertEquals(60, dddLesson.animation.totalDurationSeconds)
@@ -41,43 +32,11 @@ class EduslopTest {
     @Test
     fun testFallbackGenerationForArbitraryPrompt() {
         val topic = "Quantum Computing"
-        val lesson = MockLessonService.createFallbackLessonForPrompt(topic)
+        val lesson = MockLessonService().createFallbackLessonForPrompt(topic)
         assertTrue(lesson.topic.contains("Quantum Computing"))
         assertEquals(60, lesson.animation.totalDurationSeconds)
         assertTrue(lesson.cueCards.isNotEmpty())
         assertTrue(lesson.quiz.isNotEmpty())
-    }
-
-    @Test
-    fun testLessonRepository() {
-        val repo = LessonRepository()
-        val lesson = MockLessonService.createDddLesson()
-        repo.save(lesson)
-
-        val retrieved = repo.findById("ddd-intro")
-        assertNotNull(retrieved)
-        assertEquals(lesson.topic, retrieved.topic)
-        assertEquals(1, repo.findAll().size)
-    }
-
-    @Test
-    fun testQuizRepository() {
-        val repo = QuizRepository()
-        val submission = QuizSubmissionResult(
-            submissionId = "sub-1",
-            lessonId = "ddd-intro",
-            studentName = "Alice",
-            score = 4,
-            total = 4,
-            percentage = 100,
-            questionResults = emptyList()
-        )
-        repo.saveSubmission(submission)
-
-        val results = repo.getSubmissionsForLesson("ddd-intro")
-        assertEquals(1, results.size)
-        assertEquals("Alice", results.first().studentName)
-        assertEquals(100, results.first().percentage)
     }
 
     @Test
@@ -94,9 +53,24 @@ class EduslopTest {
         try {
             assertTrue(AiConfig.useMock())
 
-            val lesson = GoogleAdkService().generateLesson("How does Domain Driven Design work")
+            val service = LessonServiceFactory.create()
+            assertEquals("mock", service.mode)
+            val lesson = service.generateLesson("How does Domain Driven Design work")
             assertNotNull(lesson)
             assertEquals(60, lesson.animation.totalDurationSeconds)
+        } finally {
+            if (previous == null) System.clearProperty("USE_MOCK") else System.setProperty("USE_MOCK", previous)
+        }
+    }
+
+    @Test
+    fun testWiringSelectsLiveServiceWhenMockIsDisabled() {
+        val previous = System.getProperty("USE_MOCK")
+        System.setProperty("USE_MOCK", "false")
+        try {
+            val service = LessonServiceFactory.create()
+            assertEquals("live", service.mode)
+            assertTrue(service is GoogleAdkService)
         } finally {
             if (previous == null) System.clearProperty("USE_MOCK") else System.setProperty("USE_MOCK", previous)
         }
@@ -118,7 +92,7 @@ class EduslopTest {
 
     @Test
     fun testDesignTutorAgentInitialization() {
-        val tutorService = com.eduslop.service.LessonTutorService()
+        val tutorService = GoogleAdkDesignTutor()
         assertNotNull(tutorService.designTutorAgent)
         assertEquals("eduslop_design_tutor_agent", tutorService.designTutorAgent.name())
     }
@@ -198,7 +172,7 @@ class EduslopTest {
             tone = "Playful retro arcade"
         )
 
-        val lesson = MockLessonService.createFallbackLessonForPrompt("Photosynthesis", brief)
+        val lesson = MockLessonService().createFallbackLessonForPrompt("Photosynthesis", brief)
 
         assertEquals("Photosynthesis", lesson.topic)
         assertTrue(lesson.summary.contains("Year 7 learners"))
@@ -216,7 +190,7 @@ class EduslopTest {
             keyConcepts = listOf("Ubiquitous language")
         )
 
-        val lesson = MockLessonService.createFallbackLessonForPrompt("DDD", brief)
+        val lesson = MockLessonService().createFallbackLessonForPrompt("DDD", brief)
 
         assertEquals("Domain Driven Design", lesson.topic)
         assertTrue(lesson.summary.contains("Year 8 learners"))

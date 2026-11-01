@@ -2,7 +2,7 @@ package com.eduslop.routes
 
 import com.eduslop.models.GenerateLessonRequest
 import com.eduslop.repository.LessonRepository
-import com.eduslop.service.GoogleAdkService
+import com.eduslop.ai.LessonService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -11,7 +11,7 @@ import io.ktor.server.routing.*
 
 fun Route.lessonRoutes(
     lessonRepository: LessonRepository,
-    googleAdkService: GoogleAdkService
+    lessonService: LessonService
 ) {
     route("/api/lessons") {
         get {
@@ -33,10 +33,9 @@ fun Route.lessonRoutes(
             if (request.prompt.isBlank()) {
                 return@post call.respond(HttpStatusCode.BadRequest, "Prompt cannot be empty")
             }
-            val lesson = googleAdkService.generateLesson(request.prompt, request.apiKey, request.designBrief)
+            val lesson = lessonService.generateLesson(request.prompt, request.apiKey, request.designBrief)
             lessonRepository.save(lesson)
             call.respond(HttpStatusCode.Created, lesson)
         }
     }
 }
-

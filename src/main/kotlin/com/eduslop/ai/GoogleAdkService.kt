@@ -1,4 +1,4 @@
-package com.eduslop.service
+package com.eduslop.ai
 
 import com.eduslop.models.*
 import com.google.adk.agents.LlmAgent
@@ -13,8 +13,10 @@ import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.util.UUID
 
-class GoogleAdkService {
+internal class GoogleAdkService : LessonService {
     private val logger = LoggerFactory.getLogger(GoogleAdkService::class.java)
+
+    override val mode: String = "live"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -30,7 +32,7 @@ class GoogleAdkService {
      */
     val rootAgent: LlmAgent = LlmAgent.builder()
         .name("eduslop_retro_educator_agent")
-        .description("An educational AI agent built on Google ADK that designs 2D pixel art micro-lessons, cue cards, and stepped quizzes.")
+        .description("An educational AI agent built on Google ADK that designs PlayStation 1 / GameCube styled graphics micro-lessons, cue cards, and stepped quizzes.")
         .model(AiConfig.model())
         .instruction(
             """
@@ -38,13 +40,13 @@ class GoogleAdkService {
             Your mission is to produce a complete, interactive micro-lesson for teachers to use in class.
             
             Each lesson consists of:
-            1. A 2D pixel animation (~60 seconds total duration, split into 3-5 scenes of 10-15 seconds each).
+            1. A PlayStation 1 / GameCube styled animation (~60 seconds total duration, split into 3-5 scenes of 10-15 seconds each).
                - Each scene contains:
                  - id: integer (1, 2, 3...)
                  - title: short scene title
                  - durationSeconds: integer (e.g. 15)
                  - narration: engaging scripted dialogue text to be typed in the on-screen retro dialogue box
-                 - background: one of ["retro_dark", "blueprint_blue", "terminal_green", "cyber_purple"]
+                 - background: a free-form visual theme name inferred from the lesson and user input (PlayStation 1 / GameCube styled graphics); any string is allowed
                  - entities: 2-4 retro pixel sprites with id, name, sprite (one of: ["character", "database", "aggregate", "service", "bounded_context", "event", "box", "user", "cloud", "model"]), x (0-100), y (0-100), color, label
                  - actions: 1-3 simple actions with type ("move", "pulse", "connect", "highlight"), target, toX, toY, duration
             2. Cue Cards (4 to 6 flashcards):
@@ -69,16 +71,11 @@ class GoogleAdkService {
 
     private val runner = Runner(rootAgent, "eduslop_app", null, sessionService)
 
-    fun generateLesson(
+    override fun generateLesson(
         prompt: String,
-        userProvidedApiKey: String? = null,
-        designBrief: DesignBrief? = null
+        userProvidedApiKey: String?,
+        designBrief: DesignBrief?
     ): Lesson {
-        if (AiConfig.useMock()) {
-            logger.info("USE_MOCK=true: returning deterministic mock lesson for: {}", prompt)
-            return MockLessonService.createFallbackLessonForPrompt(prompt, designBrief)
-        }
-
         val apiKey = AiConfig.requireApiKey(userProvidedApiKey)
 
         // Ensure both properties are set for client internals.
